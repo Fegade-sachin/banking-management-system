@@ -13,15 +13,15 @@
         </property>
 
         <property name="hibernate.connection.url">
-            jdbc:oracle:thin:@localhost:1521/orcl
+            jdbc:oracle:thin:@host.docker.internal:1521/orcl
         </property>
 
         <property name="hibernate.connection.username">
-            system
+            ${DB_USERNAME}
         </property>
 
         <property name="hibernate.connection.password">
-            manager
+            ${DB_PASSWORD}
         </property>
 
         <!-- Hibernate Dialect -->
