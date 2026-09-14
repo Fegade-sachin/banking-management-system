@@ -5,16 +5,52 @@ import java.time.LocalDateTime;
 
 import com.bank.constants.TransactionType;
 
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "TRANSACTIONS")
 public class Transaction {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "TRANSACTION_ID")
     private long transactionId;
+
+    @Column(name = "ACCOUNT_NUMBER", nullable = false)
     private long accountNumber;
+
+    /*
+     * Many transactions belong to one account.
+     *
+     * accountNumber remains responsible for writing
+     * the ACCOUNT_NUMBER column.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "ACCOUNT_NUMBER",
+            referencedColumnName = "ACCOUNT_NUMBER",
+            insertable = false,
+            updatable = false
+    )
+    private Account account;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "TRANSACTION_TYPE", nullable = false)
     private TransactionType transactionType;
+
+    @Column(name = "AMOUNT", nullable = false)
     private BigDecimal amount;
+
+    @Column(name = "BALANCE_AFTER", nullable = false)
     private BigDecimal balanceAfter;
+
+    @Column(name = "DESCRIPTION")
     private String description;
+
+    @Column(name = "TRANSACTION_DATE", nullable = false)
     private LocalDateTime transactionDate;
 
+    // Hibernate requires no-argument constructor
     public Transaction() {
         this.transactionDate = LocalDateTime.now();
     }
@@ -49,6 +85,14 @@ public class Transaction {
 
     public void setAccountNumber(long accountNumber) {
         this.accountNumber = accountNumber;
+    }
+
+    public Account getAccount() {
+        return account;
+    }
+
+    public void setAccount(Account account) {
+        this.account = account;
     }
 
     public TransactionType getTransactionType() {

@@ -1,76 +1,133 @@
 package com.bank.dao.impl;
 
-import java.util.ArrayList;
 import java.util.List;
+
+import org.hibernate.Session;
+import org.hibernate.Transaction;
 
 import com.bank.dao.AccountDao;
 import com.bank.model.Account;
+import com.bank.util.HibernateUtil;
 
 public class AccountDaoImpl implements AccountDao {
 
-    private final List<Account> accounts = new ArrayList<>();
-
     @Override
     public void save(Account account) {
-        accounts.add(account);
+
+        Transaction transaction = null;
+
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+
+            transaction = session.beginTransaction();
+
+            session.persist(account);
+
+            transaction.commit();
+
+        } catch (Exception e) {
+
+            if (transaction != null && transaction.isActive()) {
+                transaction.rollback();
+            }
+
+            e.printStackTrace();
+        }
     }
 
     @Override
     public Account findByAccountNumber(long accountNumber) {
 
-        for (Account account : accounts) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 
-            if (account.getAccountNumber() == accountNumber) {
-                return account;
-            }
+            return session.find(Account.class, accountNumber);
         }
-
-        return null;
     }
 
     @Override
     public List<Account> findByCustomerId(long customerId) {
 
-        List<Account> result = new ArrayList<>();
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 
-        for (Account account : accounts) {
-
-            if (account.getCustomerId() == customerId) {
-                result.add(account);
-            }
+            return session
+                    .createQuery(
+                            "FROM Account WHERE customerId = :customerId",
+                            Account.class
+                    )
+                    .setParameter("customerId", customerId)
+                    .getResultList();
         }
-
-        return result;
     }
 
     @Override
     public List<Account> findAll() {
-        return new ArrayList<>(accounts);
+
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+
+            return session
+                    .createQuery("FROM Account", Account.class)
+                    .getResultList();
+        }
     }
 
     @Override
     public void update(Account account) {
 
-        for (int i = 0; i < accounts.size(); i++) {
+        Transaction transaction = null;
 
-            if (accounts.get(i).getAccountNumber()
-                    == account.getAccountNumber()) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 
-                accounts.set(i, account);
-                return;
+            transaction = session.beginTransaction();
+
+            session.merge(account);
+
+            transaction.commit();
+
+        } catch (Exception e) {
+
+            if (transaction != null && transaction.isActive()) {
+                transaction.rollback();
             }
+
+            e.printStackTrace();
         }
     }
 
     @Override
     public void delete(long accountNumber) {
 
-        for (int i = 0; i < accounts.size(); i++) {
+        Transaction transaction = null;
 
-            if (accounts.get(i).getAccountNumber() == accountNumber) {
-                accounts.remove(i);
-                return;
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+
+            transaction = session.beginTransaction();
+
+            Account account = session.find(Account.class, accountNumber);
+
+            if (account != null) {
+                session.remove(account);
             }
+
+            transaction.commit();
+
+        } catch (Exception e) {
+
+            if (transaction != null && transaction.isActive()) {
+                transaction.rollback();
+            }
+
+            e.printStackTrace();
         }
+    }
+
+    @Override
+    public Account findByAccountNumber(Session session, long accountNumber) {
+
+        return session.find(Account.class, accountNumber);
+    }
+
+    @Override
+    public void update(Session session, Account account) {
+
+        session.merge(account);
     }
 }

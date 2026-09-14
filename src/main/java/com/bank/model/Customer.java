@@ -1,18 +1,36 @@
 package com.bank.model;
 
-
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+@Entity
+@Table(name = "CUSTOMERS")
 public class Customer {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "CUSTOMER_ID")
     private long customerId;
+
+    @Column(name = "FIRST_NAME", nullable = false)
     private String firstName;
+
+    @Column(name = "LAST_NAME", nullable = false)
     private String lastName;
+
+    @Column(name = "EMAIL", unique = true)
     private String email;
+
+    @Column(name = "PHONE")
     private String phone;
+
+    @Column(name = "ADDRESS")
     private String address;
+
+    @Column(name = "CREATED_DATE", nullable = false)
     private LocalDateTime createdDate;
 
+    // Required by Hibernate
     public Customer() {
         this.createdDate = LocalDateTime.now();
     }

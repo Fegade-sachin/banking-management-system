@@ -1,6 +1,9 @@
 package com.bank.dao;
 
 import java.util.List;
+
+import org.hibernate.Session;
+
 import com.bank.model.Account;
 
 public interface AccountDao {
@@ -16,4 +19,8 @@ public interface AccountDao {
     void update(Account account);
 
     void delete(long accountNumber);
+
+    Account findByAccountNumber(Session session, long accountNumber);
+
+    void update(Session session, Account account);
 }

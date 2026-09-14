@@ -41,11 +41,17 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public List<Customer> getAllCustomers() {
+
         return customerDao.findAll();
     }
 
     @Override
     public void updateCustomer(Customer customer) {
+
+        if (customer == null) {
+            throw new IllegalArgumentException(
+                    "Customer cannot be null");
+        }
 
         getCustomer(customer.getCustomerId());
 

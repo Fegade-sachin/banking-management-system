@@ -1,61 +1,106 @@
 package com.bank.dao.impl;
 
-import java.util.ArrayList;
 import java.util.List;
+
+import org.hibernate.Session;
+import org.hibernate.Transaction;
 
 import com.bank.dao.CustomerDao;
 import com.bank.model.Customer;
+import com.bank.util.HibernateUtil;
 
 public class CustomerDaoImpl implements CustomerDao {
 
-    private final List<Customer> customers = new ArrayList<>();
-
     @Override
     public void save(Customer customer) {
-        customers.add(customer);
+
+        Transaction transaction = null;
+
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+
+            transaction = session.beginTransaction();
+
+            session.persist(customer);
+
+            transaction.commit();
+
+        } catch (Exception e) {
+
+            if (transaction != null) {
+                transaction.rollback();
+            }
+
+            e.printStackTrace();
+        }
     }
 
     @Override
     public Customer findById(long customerId) {
 
-        for (Customer customer : customers) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 
-            if (customer.getCustomerId() == customerId) {
-                return customer;
-            }
+            return session.find(Customer.class, customerId);
         }
-
-        return null;
     }
 
     @Override
     public List<Customer> findAll() {
-        return new ArrayList<>(customers);
+
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+
+            return session
+                    .createQuery("FROM Customer", Customer.class)
+                    .getResultList();
+        }
     }
 
     @Override
     public void update(Customer customer) {
 
-        for (int i = 0; i < customers.size(); i++) {
+        Transaction transaction = null;
 
-            if (customers.get(i).getCustomerId()
-                    == customer.getCustomerId()) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 
-                customers.set(i, customer);
-                return;
+            transaction = session.beginTransaction();
+
+            session.merge(customer);
+
+            transaction.commit();
+
+        } catch (Exception e) {
+
+            if (transaction != null) {
+                transaction.rollback();
             }
+
+            e.printStackTrace();
         }
     }
 
     @Override
     public void delete(long customerId) {
 
-        for (int i = 0; i < customers.size(); i++) {
+        Transaction transaction = null;
 
-            if (customers.get(i).getCustomerId() == customerId) {
-                customers.remove(i);
-                return;
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+
+            transaction = session.beginTransaction();
+
+            Customer customer = session.find(Customer.class, customerId);
+
+            if (customer != null) {
+                session.remove(customer);
             }
+
+            transaction.commit();
+
+        } catch (Exception e) {
+
+            if (transaction != null) {
+                transaction.rollback();
+            }
+
+            e.printStackTrace();
         }
     }
 }

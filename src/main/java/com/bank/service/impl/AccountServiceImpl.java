@@ -1,8 +1,10 @@
-package com.bank.service.impl;
+
+        package com.bank.service.impl;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+
+import org.hibernate.Session;
 
 import com.bank.constants.AccountStatus;
 import com.bank.constants.AccountType;
@@ -19,18 +21,13 @@ import com.bank.model.Account;
 import com.bank.model.Customer;
 import com.bank.model.Transaction;
 import com.bank.service.AccountService;
+import com.bank.util.HibernateUtil;
 
 public class AccountServiceImpl implements AccountService {
 
     private final AccountDao accountDao;
     private final CustomerDao customerDao;
     private final TransactionDao transactionDao;
-
-    private static final AtomicLong ACCOUNT_SEQUENCE =
-            new AtomicLong(100000);
-
-    private static final AtomicLong TRANSACTION_SEQUENCE =
-            new AtomicLong(1);
 
     public AccountServiceImpl(AccountDao accountDao,
                               CustomerDao customerDao,
@@ -56,10 +53,8 @@ public class AccountServiceImpl implements AccountService {
                     "Account type cannot be null");
         }
 
-        long accountNumber = ACCOUNT_SEQUENCE.incrementAndGet();
-
         Account account = new Account(
-                accountNumber,
+                0,
                 customerId,
                 accountType,
                 BigDecimal.ZERO
@@ -69,7 +64,7 @@ public class AccountServiceImpl implements AccountService {
 
         System.out.println(
                 "Account created successfully. Account Number: "
-                        + accountNumber);
+                        + account.getAccountNumber());
     }
 
     @Override
@@ -116,7 +111,7 @@ public class AccountServiceImpl implements AccountService {
         accountDao.update(account);
 
         Transaction transaction = new Transaction(
-                TRANSACTION_SEQUENCE.incrementAndGet(),
+                0,
                 accountNumber,
                 TransactionType.DEPOSIT,
                 amount,
@@ -137,7 +132,6 @@ public class AccountServiceImpl implements AccountService {
         validateActiveAccount(account);
 
         if (account.getBalance().compareTo(amount) < 0) {
-
             throw new InsufficientBalanceException(
                     "Insufficient balance. Available: "
                             + account.getBalance()
@@ -152,7 +146,7 @@ public class AccountServiceImpl implements AccountService {
         accountDao.update(account);
 
         Transaction transaction = new Transaction(
-                TRANSACTION_SEQUENCE.incrementAndGet(),
+                0,
                 accountNumber,
                 TransactionType.WITHDRAW,
                 amount,
@@ -175,50 +169,109 @@ public class AccountServiceImpl implements AccountService {
                     "Source and destination accounts cannot be same");
         }
 
-        Account source = getAccount(fromAccount);
-        Account destination = getAccount(toAccount);
+        try (Session session =
+                     HibernateUtil.getSessionFactory().openSession()) {
 
-        validateActiveAccount(source);
-        validateActiveAccount(destination);
+            org.hibernate.Transaction dbTransaction =
+                    session.beginTransaction();
 
-        if (source.getBalance().compareTo(amount) < 0) {
+            try {
 
-            throw new InsufficientBalanceException(
-                    "Insufficient balance for transfer");
+                // 1. Load source account
+                Account source =
+                        accountDao.findByAccountNumber(
+                                session,
+                                fromAccount
+                        );
+
+                // 2. Load destination account
+                Account destination =
+                        accountDao.findByAccountNumber(
+                                session,
+                                toAccount
+                        );
+
+                // 3. Validate accounts
+                if (source == null) {
+                    throw new AccountNotFoundException(
+                            "Account not found: " + fromAccount);
+                }
+
+                if (destination == null) {
+                    throw new AccountNotFoundException(
+                            "Account not found: " + toAccount);
+                }
+
+                // 4. Validate account status
+                validateActiveAccount(source);
+                validateActiveAccount(destination);
+
+                // 5. Check balance
+                if (source.getBalance().compareTo(amount) < 0) {
+                    throw new InsufficientBalanceException(
+                            "Insufficient balance for transfer");
+                }
+
+                // 6. Calculate new balances
+                BigDecimal sourceBalance =
+                        source.getBalance().subtract(amount);
+
+                BigDecimal destinationBalance =
+                        destination.getBalance().add(amount);
+
+                // 7. Update balances
+                source.setBalance(sourceBalance);
+                destination.setBalance(destinationBalance);
+
+                accountDao.update(session, source);
+                accountDao.update(session, destination);
+
+                // 8. Create debit transaction
+                Transaction debitTransaction =
+                        new Transaction(
+                                0,
+                                fromAccount,
+                                TransactionType.TRANSFER_DEBIT,
+                                amount,
+                                sourceBalance,
+                                "Transfer to account " + toAccount
+                        );
+
+                // 9. Create credit transaction
+                Transaction creditTransaction =
+                        new Transaction(
+                                0,
+                                toAccount,
+                                TransactionType.TRANSFER_CREDIT,
+                                amount,
+                                destinationBalance,
+                                "Transfer from account " + fromAccount
+                        );
+
+                // 10. Save both transaction records
+                transactionDao.save(
+                        session,
+                        debitTransaction
+                );
+
+                transactionDao.save(
+                        session,
+                        creditTransaction
+                );
+
+                // 11. Commit everything together
+                dbTransaction.commit();
+
+            } catch (Exception e) {
+
+                // Rollback everything if any operation fails
+                if (dbTransaction.isActive()) {
+                    dbTransaction.rollback();
+                }
+
+                throw e;
+            }
         }
-
-        BigDecimal sourceBalance =
-                source.getBalance().subtract(amount);
-
-        BigDecimal destinationBalance =
-                destination.getBalance().add(amount);
-
-        source.setBalance(sourceBalance);
-        destination.setBalance(destinationBalance);
-
-        accountDao.update(source);
-        accountDao.update(destination);
-
-        Transaction debitTransaction = new Transaction(
-                TRANSACTION_SEQUENCE.incrementAndGet(),
-                fromAccount,
-                TransactionType.TRANSFER_DEBIT,
-                amount,
-                sourceBalance,
-                "Transfer to account " + toAccount
-        );
-
-        Transaction creditTransaction = new Transaction(
-                TRANSACTION_SEQUENCE.incrementAndGet(),
-                toAccount,
-                TransactionType.TRANSFER_CREDIT,
-                amount,
-                destinationBalance,
-                "Transfer from account " + fromAccount
-        );
-
-        transactionDao.save(debitTransaction);
-        transactionDao.save(creditTransaction);
     }
 
     @Override
@@ -273,3 +326,4 @@ public class AccountServiceImpl implements AccountService {
         }
     }
 }
+

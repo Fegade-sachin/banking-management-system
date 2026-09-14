@@ -1,50 +1,78 @@
 package com.bank.dao.impl;
 
-import java.util.ArrayList;
 import java.util.List;
+
+import org.hibernate.Session;
 
 import com.bank.dao.TransactionDao;
 import com.bank.model.Transaction;
+import com.bank.util.HibernateUtil;
 
 public class TransactionDaoImpl implements TransactionDao {
 
-    private final List<Transaction> transactions = new ArrayList<>();
-
     @Override
     public void save(Transaction transaction) {
-        transactions.add(transaction);
+
+        org.hibernate.Transaction hibernateTransaction = null;
+
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+
+            hibernateTransaction = session.beginTransaction();
+
+            session.persist(transaction);
+
+            hibernateTransaction.commit();
+
+        } catch (Exception e) {
+
+            if (hibernateTransaction != null
+                    && hibernateTransaction.isActive()) {
+
+                hibernateTransaction.rollback();
+            }
+
+            e.printStackTrace();
+        }
     }
 
     @Override
     public Transaction findById(long transactionId) {
 
-        for (Transaction transaction : transactions) {
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 
-            if (transaction.getTransactionId() == transactionId) {
-                return transaction;
-            }
+            return session.find(Transaction.class, transactionId);
         }
-
-        return null;
     }
 
     @Override
     public List<Transaction> findByAccountNumber(long accountNumber) {
 
-        List<Transaction> result = new ArrayList<>();
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
 
-        for (Transaction transaction : transactions) {
-
-            if (transaction.getAccountNumber() == accountNumber) {
-                result.add(transaction);
-            }
+            return session
+                    .createQuery(
+                            "FROM Transaction WHERE accountNumber = :accountNumber",
+                            Transaction.class
+                    )
+                    .setParameter("accountNumber", accountNumber)
+                    .getResultList();
         }
-
-        return result;
     }
 
     @Override
     public List<Transaction> findAll() {
-        return new ArrayList<>(transactions);
+
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+
+            return session
+                    .createQuery("FROM Transaction", Transaction.class)
+                    .getResultList();
+        }
+
+    }
+    @Override
+    public void save(Session session, Transaction transaction) {
+
+        session.persist(transaction);
     }
 }

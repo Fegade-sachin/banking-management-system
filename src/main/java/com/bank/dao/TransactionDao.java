@@ -2,6 +2,7 @@ package com.bank.dao;
 
 import java.util.List;
 import com.bank.model.Transaction;
+import org.hibernate.Session;
 
 public interface TransactionDao {
 
@@ -12,4 +13,5 @@ public interface TransactionDao {
     List<Transaction> findByAccountNumber(long accountNumber);
 
     List<Transaction> findAll();
+    void save(Session session, Transaction transaction);
 }

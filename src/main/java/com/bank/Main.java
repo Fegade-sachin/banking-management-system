@@ -149,8 +149,6 @@ public class Main {
 
     private static void createCustomer() {
 
-        long id = readLong("Customer ID: ");
-
         String firstName = readString("First Name: ");
 
         String lastName = readString("Last Name: ");
@@ -162,7 +160,7 @@ public class Main {
         String address = readString("Address: ");
 
         Customer customer = new Customer(
-                id,
+                0,
                 firstName,
                 lastName,
                 email,
@@ -172,7 +170,10 @@ public class Main {
 
         customerService.createCustomer(customer);
 
-        System.out.println("Done ! Customer created successfully.");
+        System.out.println(
+                "Customer created successfully. Customer ID: "
+                        + customer.getCustomerId()
+        );
     }
 
     private static void createAccount() {
